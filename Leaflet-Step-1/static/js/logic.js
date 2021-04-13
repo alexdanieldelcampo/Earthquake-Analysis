@@ -3,7 +3,14 @@ url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson
 
 // Perform a GET request to the query URL
 d3.json(url).then(function(data) {
-  console.log(data.features[0])
+
+  //finding max and min for depths
+depths = []
+     for (var i = 0; i < data.features.length; i++) {
+      depth = data.features[i].geometry.coordinates[2]
+      depths.push(depth)
+     }
+console.log((depths))
   // Once we get a response, send the data.features object to the createFeatures function
   createFeatures(data.features);
 });
@@ -13,24 +20,69 @@ function createFeatures(earthquakeData) {
   // Define a function we want to run once for each feature in the features array
   // Give each feature a popup describing the place and time of the earthquake
   function onEachFeature(feature, layer) {
+    
+    layer.on({
+      // When a user's mouse touches a map feature, the mouseover event calls this function, that feature's opacity changes to 90% so that it stands out
+      mouseover: function(event) {
+        layer = event.target;
+        layer.setStyle({
+          fillOpacity: 1
+        });
+      },
+      // When the cursor no longer hovers over a map feature - when the mouseout event occurs - the feature's opacity reverts back to 50%
+      mouseout: function(event) {
+        layer = event.target;
+        layer.setStyle({
+          fillOpacity: 0.8
+        });
+      },
+      // When a feature (neighborhood) is clicked, it is enlarged to fit the screen
+      // click: function(event) {
+      //   myMap.fitBounds(event.target.getBounds());
+      // }
+    });
+
+
     layer.bindPopup("<h3>" + feature.properties.place +
-      "</h3><hr><p>" + new Date(feature.properties.time) + "</p>");
+      "</h3><hr><p>" + "<strong> Magnitude: </strong>" + feature.properties.mag + "<br>" 
+       + "<strong> Depth: </strong>" + feature.geometry.coordinates[2] + "<br>" 
+      + new Date(feature.properties.time) + "</p>");
   }
 
 
 
  
-
+  function getColor(depth) {
+    if (depth > 50) {
+      return "#d73027"
+    }
+    else if (depth > 20){
+      return "#fc8d59"
+    }
+    else if (depth > 10){
+      return "#fee08b"
+    }
+    else if (depth > 5){
+      return "#ffffbf"
+    }
+    else if (depth > 2){
+      return "#d9ef8b"
+    }
+    else {
+      return "#91cf60"
+    }
+    ["#d73027","#fc8d59","#fee08b","#ffffbf","#d9ef8b","#91cf60","#1a9850"]
+  }
 
 
   // Create a GeoJSON layer containing the features array on the earthquakeData object
   // Run the onEachFeature function once for each piece of data in the array
   var earthquakes = L.geoJSON(earthquakeData, {
     onEachFeature: onEachFeature,
-    pointToLayer: function (feature, latlng, alt) {
+    pointToLayer: function (feature, latlng) {
       var geojsonMarkerOptions = {
-        radius: 8*feature.properties.mag,
-        fillColor: "#ff7800",
+        radius: 7*feature.properties.mag,
+        fillColor: getColor(feature.geometry.coordinates[2]),
         color: "#000",
         weight: 1,
         opacity: 1,
@@ -75,7 +127,7 @@ function createMap(earthquakes) {
   };
 
   // Create our map, giving it the streetmap and earthquakes layers to display on load
-  var myMap = L.map("map", {
+  var map = L.map("map", {
     center: [
       37.09, -95.71
     ],
@@ -88,12 +140,58 @@ function createMap(earthquakes) {
   // Add the layer control to the map
   L.control.layers(baseMaps, overlayMaps, {
     collapsed: false
-  }).addTo(myMap);
-}
+  }).addTo(map);
+
+
+  var legend = L.control({position: 'bottomright'});
+
+  legend.onAdd = function (map) {
+  
+    function chooseColor(depth) {
+      if (depth > 90) {
+        return "#d73027"
+      }
+      else if (depth > 70){
+        return "#fc8d59"
+      }
+      else if (depth > 50){
+        return "#fee08b"
+      }
+      else if (depth > 30){
+        return "#ffffbf"
+      }
+      else if (depth > 10){
+        return "#d9ef8b"
+      }
+      else {
+        return "#91cf60"
+      }
+      ["#d73027","#fc8d59","#fee08b","#ffffbf","#d9ef8b","#91cf60","#1a9850"]
+    }
 
 
 
 
+
+      var div = L.DomUtil.create('div', 'info legend'),
+          grades = [0, 10, 30, 50, 70, 90],
+          labels = [];
+  
+          div.innerHTML = "<h3>Depth (km)</h3>"
+
+      // loop through our density intervals and generate a label with a colored square for each interval
+      for (var i = 0; i < grades.length; i++) {
+          div.innerHTML += 
+              '<i style="background:' + chooseColor(grades[i] + 1) + '"></i> ' +
+              grades[i] + (grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+');
+      }
+  
+      return div;
+  };
+  
+  legend.addTo(map);
+
+};
 
 
 
